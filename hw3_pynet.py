@@ -224,9 +224,8 @@ class ReLU(object):
             output -- numpy array having the same shape as input.
     '''
     def forward(self, input):
-        ########################
-        # TODO: YOUR CODE HERE #
-        ########################
+
+        output = np.maximum(0,input)
         return output
 
     '''
@@ -241,9 +240,11 @@ class ReLU(object):
             grad_input  -- numpy array has the same shape as grad_output. gradient w.r.t input
     '''
     def backward(self, grad_output):
-        ########################
-        # TODO: YOUR CODE HERE #
-        ########################
+
+        grad_input = np.copy(grad_output)
+
+        grad_input[grad_input > 0] = 1
+
         return grad_input
 
 '''
@@ -274,15 +275,21 @@ class ReLU(object):
 
     Arguments:
         None
+
+    Reference: https://deepnotes.io/softmax-crossentropy#derivative-of-cross-entropy-loss-with-softmax
 '''
 class CrossEntropyLossWithSoftmax(object):
     def __init__(self):
         pass
 
+    def softmax(self, X):
+        exps = np.exp(X)
+        return exps / np.sum(exps, axis=1)[:,None]
+
     '''
         Forward computation of cross entropy with softmax. (3 points)
 
-        Tou may want to save some intermediate variables to class membership
+        You may want to save some intermediate variables to class membership
         (self.)
 
         Arguments:
@@ -293,9 +300,14 @@ class CrossEntropyLossWithSoftmax(object):
             output   -- numpy array of shape (N), containing the cross entropy loss on each input
     '''
     def forward(self, input, gt_label):
-        ########################
-        # TODO: YOUR CODE HERE #
-        ########################
+
+
+        m = gt_label.shape[0]
+
+        probs = self.softmax(input)
+
+        output = - np.log(probs[range(m),gt_label])
+
         return output
 
     '''
