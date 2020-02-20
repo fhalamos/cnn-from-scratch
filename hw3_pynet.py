@@ -45,7 +45,7 @@ class Linear(object):
     def forward(self, input):
 
         self.X = input
-        self.N, _ = input.shape
+
         output = np.matmul(input, self.weight) + self.bias
 
         return output
@@ -70,15 +70,15 @@ class Linear(object):
     def backward(self, grad_output):
 
         #loss_wrt_x = loss_wrt_y . y_wrt_X = grad_output . W^T
-        grad_input = np.matmul(grad_output, self.weight)
+        grad_input = np.matmul(grad_output, self.weight.T)
 
         #loss_wrt_w = loss_wrt_y . y_wrt_w = X^T . grad_output
         grad_weight = np.matmul(self.X.T, grad_output)
 
         #loss_wrt_b = loss_wrt_y . y_wrt_b = 
-        #mirar apuntes en cuaderno, pa estar segur
-        grad_bias = np.matmul(grad_output.T, np.ones(self.N))
-
+        #mirar apuntes en cuaderno, pa estar seguro
+        N, _ = grad_output.shape
+        grad_bias = np.matmul(grad_output.T, np.ones(N))
 
         return grad_input, grad_weight, grad_bias
 
@@ -145,14 +145,25 @@ class BatchNorm1d(object):
             input -- numpy array (N, input_channel)
             train -- bool, boolean indicator to specify the running mode, True for training and False for testing
     '''
-    def forward(self, input, train):
-        ########################
-        # TODO: YOUR CODE HERE #
-        ########################
+    def forward(self, input, train): #isnt there a porblem for a variable to be called input?
+
+        if(train):
+
+            input_mean = input.mean(axis=0)
+            input_var = input.var(axis=0)
+            self.xhat = (input - input_mean)/np.sqrt(input_var+self.eps)
+            output = self.xhat*self.gamma + self.beta
+
+            self.r_mean = (1 - self.momentum) * input_mean + self.momentum * self.r_mean
+            self.r_var =  (1 - self.momentum) * input_var + self.momentum * self.r_var
+
+        else: #test
+            output = (input - self.r_mean)/np.sqrt(self.r_var+self.eps)*self.gamma + self.beta
+
         return output
 
     '''
-        Backward computationg of batch normalization layer. (3 points)
+        Backward computation of batch normalization layer. (3 points)
         You need to compute gradient w.r.t input data, gamma, and beta.
 
         It is recommend to follow the chain rule to first compute the gradient
@@ -165,11 +176,22 @@ class BatchNorm1d(object):
             grad_input -- numpy array of shape (N, input_channel), gradient w.r.t input
             grad_gamma -- numpy array of shape (input_channel), gradient w.r.t gamma
             grad_beta  -- numpy array of shape (input_channel), gradient w.r.t beta
+    
+        Reference: https://kevinzakka.github.io/2016/09/14/batch_normalization/
     '''
     def backward(self, grad_output):
-        ########################
-        # TODO: YOUR CODE HERE #
-        ########################
+        
+        N, _ = grad_output.shape
+        
+        grad_xhat = grad_output * self.gamma
+
+        grad_input =    (1./N) * \
+                        (1. / (np.sqrt(self.r_var + self.eps))) * \
+                        (N * grad_xhat - np.sum(grad_xhat, axis=0) - self.xhat *np.sum(grad_xhat*self.xhat, axis=0))
+
+        grad_beta = np.sum(grad_output, axis=0)
+        grad_gamma = np.sum(self.xhat*grad_output, axis=0)
+
         return grad_input, grad_gamma, grad_beta
 
 '''
