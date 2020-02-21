@@ -282,8 +282,8 @@ class CrossEntropyLossWithSoftmax(object):
     def __init__(self):
         pass
 
-    def softmax(self, X):
-        exps = np.exp(X)
+    def softmax(self, input):
+        exps = np.exp(input)
         return exps / np.sum(exps, axis=1)[:,None]
 
     '''
@@ -301,12 +301,19 @@ class CrossEntropyLossWithSoftmax(object):
     '''
     def forward(self, input, gt_label):
 
+        self.n, self.c = input.shape #number of classes
 
-        m = gt_label.shape[0]
+        self.gt_label = gt_label
 
-        probs = self.softmax(input)
+        # n = gt_label.shape[0]
 
-        output = - np.log(probs[range(m),gt_label])
+        self.probs = self.softmax(input)
+
+        # print(self.gt_label.shape)
+        # print(self.gt_label)
+
+
+        output = - np.log(self.probs[range(self.n),gt_label])
 
         return output
 
@@ -323,9 +330,10 @@ class CrossEntropyLossWithSoftmax(object):
             output   -- numpy array of shape (N, C), the gradient w.r.t input of forward function
     '''
     def backward(self, grad_output):
-        ########################
-        # TODO: YOUR CODE HERE #
-        ########################
+
+        grad_input = np.copy(self.probs)
+        grad_input[range(self.n),self.gt_label] -= 1
+
         return grad_input
 
 '''
