@@ -84,10 +84,11 @@ CPU mode.
 The global variables dtype and device will control the data types throughout
 this assignment.
 '''
-USE_GPU = False
+USE_GPU = True
 dtype = torch.float32 # we will be using float throughout this tutorial
 if USE_GPU and torch.cuda.is_available():
     device = torch.device('cuda')
+    print(device)
 else:
     device = torch.device('cpu')
 # Constant to control how frequently we print train loss
@@ -108,19 +109,43 @@ Returns: Nothing, but prints model accuracies during training.
 '''
 def train(model, optimizer, epochs=1):
     model = model.to(device=device)  # move the model parameters to CPU/GPU
+
+    loss_fn = torch.nn.MSELoss()
+
+    gpu_id = device
+    model.cuda(gpu_id) #Enable gpu
     for e in range(epochs):
         for t, (x, y) in enumerate(loader_train):
+
+            x = x.cuda(gpu_id) #enable gpu
             ##########################################################################
             # TODO: YOUR CODE HERE
             # (1) put model to training mode
+
             # (2) move data to device, e.g. CPU or GPU
             # (3) forward and get loss
+            output = model.forward(x) #loss = 
+            
+            print(output.shape)
+            # print(output)
+            print(y.shape)
+            print(y)
+
+            
+            _, output_tags = output.max(-1)
+
+            loss = loss_fn(output_tags, y)
+
             # (4) Zero out all of the gradients for the variables which the optimizer
             # will update.
+            optimizer.zero_grad()
+
             # (5) the backwards pass: compute the gradient of the loss with
             # respect to each  parameter of the model.
+            loss.backward()
             # (6)Actually update the parameters of the model using the gradients
             # computed by the backwards pass.
+            optimizer.step()
             ##########################################################################
             if t % print_every == 0:
                 print('Epoch %d, Iteration %d, loss = %.4f' % (e, t, loss.item()))
@@ -147,6 +172,7 @@ def test(loader, model):
     model.eval()  # set model to evaluation mode
     with torch.no_grad():
         for x, y in loader:
+            print("pending")
             ##########################################################################
             # TODO: YOUR CODE HERE
             # (1) move to device, e.g. CPU or GPU
@@ -197,8 +223,54 @@ optimizer = optim.SGD(model.parameters(), lr, momentum, weight_decay)
 **************************************************************************
 Finish your model and optimizer below.
 '''
-model = None
-optimizer = None
+
+#References: pythoch tutorial
+class myNet(nn.Module):
+    def __init__(self):
+        super(myNet, self).__init__()
+        
+        self.conv1 = nn.Conv2d(3,32,2,1)
+        self.conv2 = nn.Conv2d(32,64,3,1)
+        self.dropout1 = nn.Dropout2d(0.25)
+        self.dropout2 = nn.Dropout2d(0.5)
+
+        self.fc1 = nn.Linear(12544,128)
+        self.fc2 = nn.Linear(128,10)
+
+    def forward(self, x):
+        
+        # print(x.shape) #torch.Size([64, 3, 32, 32]) imagenes, canales, height, width
+
+        x = self.conv1(x)
+
+        x = F.relu(x)
+        x = self.conv2(x)
+        x = F.max_pool2d(x, 2)
+        x = self.dropout1(x)
+        x = torch.flatten(x,1)
+        x = self.fc1(x)
+        x = F.relu(x)
+        x = self.dropout2(x)
+        x = self.fc2(x)
+
+        print("A!!!")
+        print(x.shape)
+        output = F.softmax(x, dim=1)
+        print(output.shape)
+        print(output)
+
+
+
+
+        return output
+
+model = myNet()
+
+lr = 0.05
+momentum = 0.3
+weight_decay = 0.5
+optimizer = optim.SGD(model.parameters(), lr, momentum, weight_decay)
+
 ##########################################################################
 
 # You should get at least 70% accuracy
