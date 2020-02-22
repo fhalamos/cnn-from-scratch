@@ -84,7 +84,7 @@ CPU mode.
 The global variables dtype and device will control the data types throughout
 this assignment.
 '''
-USE_GPU = True
+USE_GPU = False
 dtype = torch.float32 # we will be using float throughout this tutorial
 if USE_GPU and torch.cuda.is_available():
     device = torch.device('cuda')
@@ -92,7 +92,7 @@ if USE_GPU and torch.cuda.is_available():
 else:
     device = torch.device('cpu')
 # Constant to control how frequently we print train loss
-print_every = 100
+print_every = 10
 print('using device:', device)
 best_acc = 0
 
@@ -110,31 +110,25 @@ Returns: Nothing, but prints model accuracies during training.
 def train(model, optimizer, epochs=1):
     model = model.to(device=device)  # move the model parameters to CPU/GPU
 
-    loss_fn = torch.nn.MSELoss()
+    loss_fn = nn.CrossEntropyLoss()
 
     gpu_id = device
-    model.cuda(gpu_id) #Enable gpu
+    if(USE_GPU):
+        model.cuda(gpu_id) #Enable gpu
     for e in range(epochs):
         for t, (x, y) in enumerate(loader_train):
 
-            x = x.cuda(gpu_id) #enable gpu
+            if(USE_GPU):
+                x = x.cuda(gpu_id) #enable gpu
             ##########################################################################
             # TODO: YOUR CODE HERE
             # (1) put model to training mode
 
             # (2) move data to device, e.g. CPU or GPU
             # (3) forward and get loss
-            output = model.forward(x) #loss = 
-            
-            print(output.shape)
-            # print(output)
-            print(y.shape)
-            print(y)
+            output = model.forward(x) 
 
-            
-            _, output_tags = output.max(-1)
-
-            loss = loss_fn(output_tags, y)
+            loss = loss_fn(output, y)
 
             # (4) Zero out all of the gradients for the variables which the optimizer
             # will update.
@@ -163,6 +157,7 @@ Returns: Nothing, but prints model accuracies during training.
 '''
 def test(loader, model):
     global best_acc
+
     if loader.dataset.train:
         print('Checking accuracy on validation set')
     else:
@@ -172,13 +167,17 @@ def test(loader, model):
     model.eval()  # set model to evaluation mode
     with torch.no_grad():
         for x, y in loader:
-            print("pending")
             ##########################################################################
             # TODO: YOUR CODE HERE
             # (1) move to device, e.g. CPU or GPU
             # (2) forward and calculate scores and predictions
-            # (2) accumulate num_correct and num_samples
-            ##########################################################################
+            output = model.forward(x)
+            y_predicted = output.argmax(1)
+
+            # (3) accumulate num_correct and num_samples
+            num_correct += sum(y==y_predicted)
+            num_samples += list(y.shape)[0]
+
         acc = float(num_correct) / num_samples
         if loader.dataset.train and acc > best_acc:
             ##########################################################################
@@ -186,6 +185,8 @@ def test(loader, model):
             # (4)Save best model on validation set for final test
             ##########################################################################
             best_acc = acc
+            torch.save(model.state_dict(), './best_model')
+
         print('Got %d / %d correct (%.2f)' % (num_correct, num_samples, 100 * acc))
 
 ##########################################################################
@@ -234,7 +235,7 @@ class myNet(nn.Module):
         self.dropout1 = nn.Dropout2d(0.25)
         self.dropout2 = nn.Dropout2d(0.5)
 
-        self.fc1 = nn.Linear(12544,128)
+        self.fc1 = nn.Linear(12544,128)#12544
         self.fc2 = nn.Linear(128,10)
 
     def forward(self, x):
@@ -247,20 +248,15 @@ class myNet(nn.Module):
         x = self.conv2(x)
         x = F.max_pool2d(x, 2)
         x = self.dropout1(x)
+
+
         x = torch.flatten(x,1)
         x = self.fc1(x)
         x = F.relu(x)
         x = self.dropout2(x)
         x = self.fc2(x)
 
-        print("A!!!")
-        print(x.shape)
         output = F.softmax(x, dim=1)
-        print(output.shape)
-        print(output)
-
-
-
 
         return output
 
@@ -274,11 +270,12 @@ optimizer = optim.SGD(model.parameters(), lr, momentum, weight_decay)
 ##########################################################################
 
 # You should get at least 70% accuracy
-train(model, optimizer, epochs=10)
+train(model, optimizer, epochs=1)
 
 ##########################################################################
 # TODO: YOUR CODE HERE
 # load saved model to best_model for final testing
-best_model = None
+best_model = myNet()
+best_model.load_state_dict(torch.load('./best_model'))
 ##########################################################################
 test(loader_test, best_model)
