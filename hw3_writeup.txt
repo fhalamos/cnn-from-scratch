@@ -1,0 +1,49 @@
+Design/choose your own model structure (12 points) and optimizer (3 points).
+
+(1) Model hyperparams:
+- Filter size, Number of filters and layers. You need to make careful choices to
+tradeoff the computational efficiency and accuracy (especially in this assignment).
+- Pooling vs Strided Convolution
+- Batch normalization
+
+(2) New Network architecture:
+- You can borrow some cool ideas from novel convnets design, such as ResNet where
+the input from the previous layer is added to the output
+https://arxiv.org/abs/1512.03385
+- Note: Don't directly use the existing network design.
+
+Describe what you did, any additional features that you implemented,
+and/or any graphs that you made in the process of training and
+evaluating your network.  Report final test accuracy @10 epochs in a
+writeup: hw3.pdf (3 points).
+'''
+
+DESIGN DECISION
+
+# Optimizer
+
+I first used a simple network architecture to find the best optimizer and its parameters. In particular, I used a network with 2 convolution layers and two FC layers, maxpooling, dropout. Relu for activation methos.
+
+I tried 2 different optimizers, SGD and Adam. For both of them, I tried turning on and off their internal optimizing modes (nesterov and amsgrad). I also tried different learning rates: [0.05, 0.01, 0.001]. I did all the possible combination of the previous optimizers. Results were as follows:
+
+SGD; nesterov:False; lr:0.05. Accuracy: (59.15)
+SGD; nesterov:False; lr:0.01. Accuracy: (64.16)
+SGD; nesterov:False; lr:0.001. Accuracy: (65.06)
+SGD; nesterov:True; lr:0.05. Accuracy: (65.67)
+SGD; nesterov:True; lr:0.01. Accuracy: (68.03)
+SGD; nesterov:True; lr:0.001. Accuracy: (68.51)
+Adam; amsgrad:False; lr:0.05. Accuracy: (68.51)
+Adam; amsgrad:False; lr:0.01. Accuracy: (68.51)
+Adam; amsgrad:False; lr:0.001. Accuracy: (68.51)
+Adam; amsgrad:True; lr:0.05. Accuracy: (68.51)
+Adam; amsgrad:True; lr:0.01. Accuracy: (68.51)
+Adam; amsgrad:True; lr:0.001. Accuracy: (68.51)
+
+We observe that, for this network architecture, the best optimizer is Adam, using amsgrad and learning rate of 0.01 (actually Adam-amsgrad got same accuracy for different lr).
+
+# Netwok architecture
+- Filter size, Number of filters and layers. You need to make careful choices to
+tradeoff the computational efficiency and accuracy (especially in this assignment).
+- Pooling vs Strided Convolution
+- Batch normalization
+
