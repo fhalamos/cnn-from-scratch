@@ -84,15 +84,14 @@ CPU mode.
 The global variables dtype and device will control the data types throughout
 this assignment.
 '''
-USE_GPU = False
+USE_GPU = True
 dtype = torch.float32 # we will be using float throughout this tutorial
 if USE_GPU and torch.cuda.is_available():
     device = torch.device('cuda')
-    print(device)
 else:
     device = torch.device('cpu')
 # Constant to control how frequently we print train loss
-print_every = 10
+print_every = 100
 print('using device:', device)
 best_acc = 0
 
@@ -108,23 +107,27 @@ Inputs:
 Returns: Nothing, but prints model accuracies during training.
 '''
 def train(model, optimizer, epochs=1):
-    model = model.to(device=device)  # move the model parameters to CPU/GPU
+    # move the model parameters to CPU/GPU
+    model = model.to(device=device)  
 
     loss_fn = nn.CrossEntropyLoss()
 
-    gpu_id = device
-    if(USE_GPU):
-        model.cuda(gpu_id) #Enable gpu
+    if(USE_GPU and torch.cuda.is_available()):
+        model.cuda(device) #Enable gpu
+   
     for e in range(epochs):
         for t, (x, y) in enumerate(loader_train):
-
-            if(USE_GPU):
-                x = x.cuda(gpu_id) #enable gpu
-            ##########################################################################
-            # TODO: YOUR CODE HERE
             # (1) put model to training mode
+            model.train()
 
             # (2) move data to device, e.g. CPU or GPU
+            if(USE_GPU and torch.cuda.is_available()):
+                x = x.cuda(device)
+                y = y.cuda(device)
+                # x = x.to(device=device)
+                # y = y.to(device=device)
+
+
             # (3) forward and get loss
             output = model.forward(x) 
 
@@ -142,9 +145,8 @@ def train(model, optimizer, epochs=1):
             optimizer.step()
             ##########################################################################
             if t % print_every == 0:
-                print('Epoch %d, Iteration %d, loss = %.4f' % (e, t, loss.item()))
+                # print('Epoch %d, Iteration %d, loss = %.4f' % (e, t, loss.item()))
                 test(loader_val, model)
-                print()
 '''
 Testing (6 points)
 Test a model on CIFAR-10 using the PyTorch Module API.
@@ -158,18 +160,25 @@ Returns: Nothing, but prints model accuracies during training.
 def test(loader, model):
     global best_acc
 
-    if loader.dataset.train:
-        print('Checking accuracy on validation set')
-    else:
-        print('Checking accuracy on test set')
+    # move the model parameters to CPU/GPU
+    model = model.to(device=device)  
+
+    # if not loader.dataset.train:
+    #     print('Checking accuracy on test set')
+    # else:
+    #     print('Checking accuracy on validation set')
+
     num_correct = 0
     num_samples = 0
     model.eval()  # set model to evaluation mode
     with torch.no_grad():
         for x, y in loader:
-            ##########################################################################
-            # TODO: YOUR CODE HERE
+
             # (1) move to device, e.g. CPU or GPU
+            if(USE_GPU and torch.cuda.is_available()):
+                x = x.cuda(device)
+                y = y.cuda(device)
+
             # (2) forward and calculate scores and predictions
             output = model.forward(x)
             y_predicted = output.argmax(1)
@@ -180,14 +189,13 @@ def test(loader, model):
 
         acc = float(num_correct) / num_samples
         if loader.dataset.train and acc > best_acc:
-            ##########################################################################
-            # TODO: YOUR CODE HERE
             # (4)Save best model on validation set for final test
-            ##########################################################################
             best_acc = acc
             torch.save(model.state_dict(), './best_model')
 
-        print('Got %d / %d correct (%.2f)' % (num_correct, num_samples, 100 * acc))
+        # print('Got %d / %d correct (%.2f)' % (num_correct, num_samples, 100 * acc))
+        if not loader.dataset.train:
+            print('Got %d / %d correct (%.2f)' % (num_correct, num_samples, 100 * acc))
 
 ##########################################################################
 # TODO: YOUR CODE HERE
@@ -240,16 +248,11 @@ class myNet(nn.Module):
 
     def forward(self, x):
         
-        # print(x.shape) #torch.Size([64, 3, 32, 32]) imagenes, canales, height, width
-
         x = self.conv1(x)
-
         x = F.relu(x)
         x = self.conv2(x)
         x = F.max_pool2d(x, 2)
         x = self.dropout1(x)
-
-
         x = torch.flatten(x,1)
         x = self.fc1(x)
         x = F.relu(x)
@@ -260,22 +263,36 @@ class myNet(nn.Module):
 
         return output
 
-model = myNet()
 
-lr = 0.05
+#Encapsulates training and test set for given model and optimizer
+def try_model_structure_and_optimizer(model, optimizer):
+    global best_acc
+    best_acc = 0
+    train(model, optimizer, epochs=10)
+
+    # load saved model to best_model for final testing
+    best_model = myNet()
+    best_model.load_state_dict(torch.load('./best_model'))
+
+    test(loader_test, best_model)
+
+
+
+lrs = [0.05, 0.01]#, 0.001]
+
 momentum = 0.3
+# dampening = 0.5
 weight_decay = 0.5
-optimizer = optim.SGD(model.parameters(), lr, momentum, weight_decay)
+for optimizer_name in ['SGD', 'Adam']:#, 
+    for optimizer_option in [False, True]:# 
+        for lr in lrs:
+            model = myNet()
+            if(optimizer_name == 'SGD'):
+                print(optimizer_name+"; nesterov:"+str(optimizer_option)+"; lr:"+str(lr))
+                optimizer = optim.SGD(model.parameters(), lr=lr, momentum=momentum, dampening=0, nesterov=optimizer_option)
+            elif(optimizer_name == 'Adam'):
+                print(optimizer_name+"; amsgrad:"+str(optimizer_option)+"; lr:"+str(lr))
+                optimizer = optim.Adam(model.parameters(), lr=lr, weight_decay=0, amsgrad=optimizer_option)
 
-##########################################################################
-
-# You should get at least 70% accuracy
-train(model, optimizer, epochs=1)
-
-##########################################################################
-# TODO: YOUR CODE HERE
-# load saved model to best_model for final testing
-best_model = myNet()
-best_model.load_state_dict(torch.load('./best_model'))
-##########################################################################
-test(loader_test, best_model)
+            try_model_structure_and_optimizer(model, optimizer)
+            print("---")
