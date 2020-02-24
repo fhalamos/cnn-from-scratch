@@ -257,9 +257,9 @@ class myNet(nn.Module):
         x = self.fc1(x)
         x = F.relu(x)
         x = self.dropout2(x)
-        x = self.fc2(x)
+        output = self.fc2(x)
 
-        output = F.softmax(x, dim=1)
+        # output = F.softmax(x, dim=1)
 
         return output
 
@@ -278,12 +278,12 @@ def try_model_structure_and_optimizer(model, optimizer):
 
 
 
-lrs = [0.05, 0.01]#, 0.001]
+lrs = [0.05, 0.01, 0.001]
 
 momentum = 0.3
 # dampening = 0.5
 weight_decay = 0.5
-for optimizer_name in ['SGD', 'Adam']:#, 
+for optimizer_name in ['SGD','Adam']:#,  
     for optimizer_option in [False, True]:# 
         for lr in lrs:
             model = myNet()

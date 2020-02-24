@@ -22,26 +22,56 @@ DESIGN DECISION
 
 # Optimizer
 
-I first used a simple network architecture to find the best optimizer and its parameters. In particular, I used a network with 2 convolution layers and two FC layers, maxpooling, dropout. Relu for activation methos.
-
 I tried 2 different optimizers, SGD and Adam. For both of them, I tried turning on and off their internal optimizing modes (nesterov and amsgrad). I also tried different learning rates: [0.05, 0.01, 0.001]. I did all the possible combination of the previous optimizers. Results were as follows:
 
-SGD; nesterov:False; lr:0.05. Accuracy: (59.15)
-SGD; nesterov:False; lr:0.01. Accuracy: (64.16)
-SGD; nesterov:False; lr:0.001. Accuracy: (65.06)
-SGD; nesterov:True; lr:0.05. Accuracy: (65.67)
-SGD; nesterov:True; lr:0.01. Accuracy: (68.03)
-SGD; nesterov:True; lr:0.001. Accuracy: (68.51)
-Adam; amsgrad:False; lr:0.05. Accuracy: (68.51)
-Adam; amsgrad:False; lr:0.01. Accuracy: (68.51)
-Adam; amsgrad:False; lr:0.001. Accuracy: (68.51)
-Adam; amsgrad:True; lr:0.05. Accuracy: (68.51)
-Adam; amsgrad:True; lr:0.01. Accuracy: (68.51)
-Adam; amsgrad:True; lr:0.001. Accuracy: (68.51)
+SGD; nesterov:False; lr:0.05
+Got 6708 / 10000 correct (67.08)
+---
+SGD; nesterov:False; lr:0.01
+Got 6720 / 10000 correct (67.20)
+---
+SGD; nesterov:False; lr:0.001
+Got 4884 / 10000 correct (48.84)
+---
+SGD; nesterov:True; lr:0.05
+Got 6692 / 10000 correct (66.92)
+---
+SGD; nesterov:True; lr:0.01
+Got 6660 / 10000 correct (66.60)
+---
+SGD; nesterov:True; lr:0.001
+Got 4971 / 10000 correct (49.71)
+---
+Adam; amsgrad:False; lr:0.05
+Got 1000 / 10000 correct (10.00)
+---
+Adam; amsgrad:False; lr:0.01
+Got 1000 / 10000 correct (10.00)
+---
+Adam; amsgrad:False; lr:0.001
+Got 6846 / 10000 correct (68.46)
+---
+Adam; amsgrad:True; lr:0.05
+Got 1000 / 10000 correct (10.00)
+---
+Adam; amsgrad:True; lr:0.01
+Got 1000 / 10000 correct (10.00)
+---
+Adam; amsgrad:True; lr:0.001
+Got 6885 / 10000 correct (68.85)
+---
 
-We observe that, for this network architecture, the best optimizer is Adam, using amsgrad and learning rate of 0.01 (actually Adam-amsgrad got same accuracy for different lr).
+We observe that, for this network architecture, the best optimizer is Adam; amsgrad:True; lr:0.001, with accuracy (68.85).
+
 
 # Netwok architecture
+I found that an optimal election of network architecture was:
+- 2 convolutions with relu activations for each of them
+- max_pool with dimension 2
+- dropouts of 0.25 and 0.5
+- 2 fully connected leyers
+
+PENDIENTE JUGAR!!
 - Filter size, Number of filters and layers. You need to make careful choices to
 tradeoff the computational efficiency and accuracy (especially in this assignment).
 - Pooling vs Strided Convolution
