@@ -345,7 +345,7 @@ class CrossEntropyLossWithSoftmax(object):
         H, W are the spatial dimensions.
 
     The im2col functions flattens each slidding kernel-sized block
-    (C * kernel_h * kernel_w) on each sptial location, so that the output has
+    (C * kernel_h * kernel_w) on each spatial location, so that the output has
     the shape of (N, (C * kernel_h * kernel_w), out_H, out_W) and we can thus
     formuate the convolutional operation as matrix multiplication.
 
@@ -363,10 +363,81 @@ class CrossEntropyLossWithSoftmax(object):
         output_data -- numpy array of shape (N, (C * kernel_h * kernel_w), out_H, out_W)
 '''
 def im2col(input_data, kernel_h, kernel_w, stride, padding):
-    ########################
-    # TODO: YOUR CODE HERE #
-    ########################
+    
+    N, C, H, W = input_data.shape #(1, 3, 32, 32)
+    # print(input_data.shape)
+    # print(kernel_h, kernel_w, stride, padding) #2 2 2 1
+
+    # out_shape = (input_shape - kernel_size + 2 * padding) / stride + 1
+    out_H = int((H + 2* padding - kernel_h)/stride) + 1
+    out_W = int((W + 2* padding - kernel_w)/stride) + 1
+
+    # print(out_H, out_W) # 17 17
+
+    output_data = np.empty([N, (C * kernel_h * kernel_w), out_H, out_W])
+
+    #Add padding to image
+    input_data_with_padding = np.empty(shape=(N,C,H+2*padding, W+2*padding))
+    for n in range(N):
+        for c in range(C):
+            input_data_with_padding[n,c] = pad_border(input_data[n,c], wx=padding, wy=padding)
+
+    for n in range(N):
+        for oH in range(out_H):
+            for oW in range(out_W):
+
+                #Translate point (oH, oW) to associated (y, x) position in original image
+
+                # Alt 1. Kernel sliding centered at pixel
+                y = stride*oH + int(kernel_h/2)
+                x = stride*oW + int(kernel_w/2)
+
+                # Alt 2. Kernel sliding with top left corner at pixel
+                # y = stride*oH
+                # x = stride*oW
+
+                # build vector of length (C * kernel_h * kernel_w)
+                flattened_slidding_kernel = get_flattened_slidding_kernel(input_data_with_padding, n, C, y, x, kernel_h, kernel_w)
+                # print(flattened_slidding_kernel.shape)
+                # print(output_data.shape)
+                for index, c in enumerate(flattened_slidding_kernel):
+                    output_data[n, index, oH, oW] = c
+
     return output_data
+
+
+
+def get_flattened_slidding_kernel(input_data, n, n_of_channels, y, x, kernel_h, kernel_w):
+    #Get region of interest
+
+    # Alt 1. Kernel sliding centered at pixel
+    roi = input_data[n, range(n_of_channels), y-int(kernel_h/2):y+int(np.ceil(kernel_h/2)), x-int(kernel_w/2): x + int(np.ceil(kernel_w/2))]
+
+    # Alt 2. Kernel sliding with top left corner at pixel
+    # roi = input_data[n, range(n_of_channels), y:y+kernel_h, x: x + kernel_w]
+   
+    # print("roi first pic first channel")
+    # print(roi[0,1])
+
+    #Flatten it
+    # print("roi_flatten")
+    roi_flatten = roi.flatten()
+    # print(roi_flatten)
+    return roi_flatten
+
+def trim_border(image, wx = 1, wy = 1):
+   assert image.ndim == 2, 'image should be grayscale'
+   sx, sy = image.shape
+   img = np.copy(image[wx:(sx-wx),wy:(sy-wy)])
+   return img
+
+def pad_border(image, wx = 1, wy = 1):
+   assert image.ndim == 2, 'image should be grayscale'
+   sx, sy = image.shape
+   img = np.zeros((sx+2*wx, sy+2*wy))
+   img[wx:(sx+wx),wy:(sy+wy)] = image
+   return img
+
 
 '''
     col2im (3 points)
@@ -400,6 +471,7 @@ def col2im(input_data, kernel_h, kernel_w, stride=1, padding=0):
     ########################
     # TODO: YOUR CODE HERE #
     ########################
+
     return output_data
 
 '''
@@ -461,10 +533,35 @@ class Conv2d(object):
             output  -- numpy array of shape (N, output_chanel, out_H, out_W)
     '''
     def forward(self, input):
-        ########################
-        # TODO: YOUR CODE HERE #
-        ########################
+
+        _,_,self.H, self.W = input.shape
+
+        input_im2col = im2col(input, kernel_h=self.kernel_h, kernel_w=self.kernel_w, stride=self.stride, padding=self.padding)
+
+        N, c_kh_kw, out_H, out_W = input_im2col.shape #(1, 27, 16, 16)
+        
+        #print(self.weight.shape) #(6, 3, 3, 3)
+
+        output = np.empty([N, self.output_channel, out_H, out_W])
+
+        #For each image
+        for n in range(N):
+            #For each filter/output channel
+            for output_c in range(self.output_channel):
+                #Apply the convolution (element_wise multiplication) over each pixel in the input,
+                #suming over input channels
+                for oH in range(out_H):
+                    for oW in range(out_W):
+                        output[n, output_c, oH, oW] = \
+                            self.convolution_for_given_pixel(\
+                                input_im2col[n,range(c_kh_kw),oH,oW], #input  
+                                self.weight[output_c].flatten(), #weight
+                                self.bias[output_c]) #bias
+
         return output
+
+    def convolution_for_given_pixel(self,input,weights,bias):
+        return np.sum(np.multiply(input, weights))+bias
 
     '''
         Backward computation of convolutional layer. (3 points)
@@ -484,6 +581,13 @@ class Conv2d(object):
         ########################
         # TODO: YOUR CODE HERE #
         ########################
+
+        N, output_channel, _,_ = grad_output.shape
+
+        grad_input = np.empty(shape=(N, self.input_channel, self.H, self.W))
+        grad_weight = np.empty(shape=(output_channel, self.input_channel, self.kernel_h, self.kernel_w))
+        grad_bias = np.empty(shape=(output_channel))
+
         return grad_input, grad_weight, grad_bias
 
 '''
@@ -528,11 +632,35 @@ class MaxPool2d(object):
 
         Ouput:
             output  -- numpy array of shape (N, input_channel, out_H, out_W)
+
+
+
     '''
     def forward(self, input):
-        ########################
-        # TODO: YOUR CODE HERE #
-        ########################
+
+        _, self.input_channel, self.H, self.W = input.shape
+
+        # print(input.shape) #(1, 3, 32, 32)
+
+        input_im2col = im2col(input, kernel_h=self.kernel_h, kernel_w=self.kernel_w, stride=self.stride, padding=self.padding)
+
+        N, c_kh_kw, out_H, out_W = input_im2col.shape #(1, 12, 16, 16)
+        # print(input_im2col.shape)
+        output = np.empty([N, self.input_channel, out_H, out_W])
+        # print(output.shape) # 1 3 16 16
+
+        for n in range(N):
+            for channel in range(self.input_channel):
+                for oH in range(out_H):
+                    for oW in range(out_W):
+
+                        range_where_to_look_in_im2col = \
+                            range(channel*self.kernel_h*self.kernel_w, (channel+1)*self.kernel_h*self.kernel_w)                   
+
+
+                        output[n,channel,oH, oW] = \
+                            max(input_im2col[n, range_where_to_look_in_im2col, oH, oW])
+        
         return output
 
     '''
@@ -550,4 +678,10 @@ class MaxPool2d(object):
         ########################
         # TODO: YOUR CODE HERE #
         ########################
+        N, input_channel, out_H, out_W = grad_output.shape
+
+        grad_input = np.empty(shape=(N, input_channel, self.H, self.W))
+
+        #Incomplete...
+
         return grad_input

@@ -23,28 +23,29 @@ def print_shape_match(im1, im2):
 # and the student's code
 student = __import__('hw3_pynet' if len(sys.argv) == 1 else sys.argv[1])
 
-# print('Testing Conv2d:')
-# # initialize Conv2d
-# student_conv = student.Conv2d(3, 6, kernel_size=3, stride=2, padding=1)
-# ref_conv = nn.Conv2d(3, 6, kernel_size=3, stride=2, padding=1, bias=True)
-# # align input data
-# conv_data_pt = Variable(torch.rand(1, 3, 32, 32), requires_grad = True)
-# conv_data_numpy = conv_data_pt.data.numpy()
-# # align weight and bias
-# ref_conv.weight.data = torch.from_numpy(student_conv.weight).clone().detach().requires_grad_(True)
-# ref_conv.bias.data = torch.from_numpy(student_conv.bias).clone().detach().requires_grad_(True)
-# # check output
-# ref_out = ref_conv(conv_data_pt)
-# student_out = student_conv.forward(conv_data_numpy)
-# print_shape_match(ref_out.data.numpy(), student_out)
-# print_res_match(ref_out.data.numpy(), student_out)
-# # check gradients
-# grad_out, grad_w, grad_b = student_conv.backward(np.ones_like(student_out))
-# ref_out.backward(torch.ones_like(ref_out))
-# print_res_match(conv_data_pt.grad.data.numpy(), grad_out)
-# print_res_match(ref_conv.weight.grad.data.numpy(), grad_w)
-# print_res_match(ref_conv.bias.grad.data.numpy(), grad_b)
-# print('\n')
+print('Testing Conv2d:')
+# initialize Conv2d
+student_conv = student.Conv2d(3, 6, kernel_size=3, stride=2, padding=1)
+ref_conv = nn.Conv2d(3, 6, kernel_size=3, stride=2, padding=1, bias=True)
+# align input data
+conv_data_pt = Variable(torch.rand(1, 3, 32, 32), requires_grad = True)
+conv_data_numpy = conv_data_pt.data.numpy()
+# align weight and bias
+ref_conv.weight.data = torch.from_numpy(student_conv.weight).clone().detach().requires_grad_(True)
+ref_conv.bias.data = torch.from_numpy(student_conv.bias).clone().detach().requires_grad_(True)
+# check output
+ref_out = ref_conv(conv_data_pt)
+student_out = student_conv.forward(conv_data_numpy)
+print_shape_match(ref_out.data.numpy(), student_out)
+print_res_match(ref_out.data.numpy(), student_out)
+
+#check gradients
+grad_out, grad_w, grad_b = student_conv.backward(np.ones_like(student_out))
+ref_out.backward(torch.ones_like(ref_out))
+print_res_match(conv_data_pt.grad.data.numpy(), grad_out)
+print_res_match(ref_conv.weight.grad.data.numpy(), grad_w)
+print_res_match(ref_conv.bias.grad.data.numpy(), grad_b)
+print('\n')
 
 print('Testing Linear:')
 # initialize Linear
@@ -70,23 +71,23 @@ print_res_match(ref_linear.weight.grad.data.numpy().transpose(), grad_w)
 print_res_match(ref_linear.bias.grad.data.numpy().transpose(), grad_b)
 print('\n')
 
-# # print('Testing MaxPool2d:')
-# # # initialize Linear
-# # student_maxpool = student.MaxPool2d(kernel_size=2, stride=2)
-# # ref_maxpool = nn.MaxPool2d(kernel_size=2, stride=2)
-# # # align input data
-# # maxpool_data_pt = Variable(torch.rand(1, 3, 32, 32), requires_grad = True)
-# # maxpool_data_numpy = maxpool_data_pt.data.numpy()
-# # # check output
-# # ref_out = ref_maxpool(maxpool_data_pt)
-# # student_out = student_maxpool.forward(maxpool_data_numpy)
-# # print_shape_match(ref_out.data.numpy(), student_out)
-# # print_res_match(ref_out.data.numpy(), student_out)
-# # # check gradients
-# # grad_out = student_maxpool.backward(np.ones_like(student_out))
-# # ref_out.backward(torch.ones_like(ref_out))
-# # print_res_match(maxpool_data_pt.grad.data.numpy(), grad_out)
-# # print('\n')
+print('Testing MaxPool2d:')
+# initialize Linear
+student_maxpool = student.MaxPool2d(kernel_size=2, stride=2)
+ref_maxpool = nn.MaxPool2d(kernel_size=2, stride=2)
+# align input data
+maxpool_data_pt = Variable(torch.rand(1, 3, 32, 32), requires_grad = True)
+maxpool_data_numpy = maxpool_data_pt.data.numpy()
+# check output
+ref_out = ref_maxpool(maxpool_data_pt)
+student_out = student_maxpool.forward(maxpool_data_numpy)
+print_shape_match(ref_out.data.numpy(), student_out)
+print_res_match(ref_out.data.numpy(), student_out)
+# check gradients
+grad_out = student_maxpool.backward(np.ones_like(student_out))
+ref_out.backward(torch.ones_like(ref_out))
+print_res_match(maxpool_data_pt.grad.data.numpy(), grad_out)
+print('\n')
 
 print('Testing ReLU:')
 # initialize Relu

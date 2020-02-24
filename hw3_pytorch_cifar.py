@@ -238,12 +238,14 @@ class myNet(nn.Module):
     def __init__(self):
         super(myNet, self).__init__()
         
-        self.conv1 = nn.Conv2d(3,32,2,1)
-        self.conv2 = nn.Conv2d(32,64,3,1)
+        self.conv1 = nn.Conv2d(3,32,3,1)
+        self.conv2 = nn.Conv2d(32,64,2,1)
+        self.conv3 = nn.Conv2d(64,128,4,1)
+        self.conv4 = nn.Conv2d(128,64,2,1)
         self.dropout1 = nn.Dropout2d(0.25)
         self.dropout2 = nn.Dropout2d(0.5)
 
-        self.fc1 = nn.Linear(12544,128)#12544
+        self.fc1 = nn.Linear(9216,128)
         self.fc2 = nn.Linear(128,10)
 
     def forward(self, x):
@@ -251,15 +253,18 @@ class myNet(nn.Module):
         x = self.conv1(x)
         x = F.relu(x)
         x = self.conv2(x)
+        x = F.relu(x)
+        x = self.conv3(x)
+        x = F.relu(x)
+        x = self.conv4(x)
+        x = F.relu(x)
+
         x = F.max_pool2d(x, 2)
         x = self.dropout1(x)
         x = torch.flatten(x,1)
         x = self.fc1(x)
-        x = F.relu(x)
         x = self.dropout2(x)
         output = self.fc2(x)
-
-        # output = F.softmax(x, dim=1)
 
         return output
 
@@ -278,13 +283,13 @@ def try_model_structure_and_optimizer(model, optimizer):
 
 
 
-lrs = [0.05, 0.01, 0.001]
+lrs = [0.001, 0.01, 0.05]
 
 momentum = 0.3
 # dampening = 0.5
 weight_decay = 0.5
-for optimizer_name in ['SGD','Adam']:#,  
-    for optimizer_option in [False, True]:# 
+for optimizer_name in ['SGD', 'Adam']:   
+    for optimizer_option in [True]: #False
         for lr in lrs:
             model = myNet()
             if(optimizer_name == 'SGD'):
@@ -295,4 +300,3 @@ for optimizer_name in ['SGD','Adam']:#,
                 optimizer = optim.Adam(model.parameters(), lr=lr, weight_decay=0, amsgrad=optimizer_option)
 
             try_model_structure_and_optimizer(model, optimizer)
-            print("---")
