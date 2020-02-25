@@ -388,13 +388,13 @@ def im2col(input_data, kernel_h, kernel_w, stride, padding):
 
                 #Translate point (oH, oW) to associated (y, x) position in original image
 
-                # Alt 1. Kernel sliding centered at pixel
-                y = stride*oH + int(kernel_h/2)
-                x = stride*oW + int(kernel_w/2)
+                # Alt 1. Kernel sliding centered at pixel. Be consistent with your choice of Alt in get_flattened_slidding_kernel()
+                # y = stride*oH + int(kernel_h/2)
+                # x = stride*oW + int(kernel_w/2)
 
                 # Alt 2. Kernel sliding with top left corner at pixel
-                # y = stride*oH
-                # x = stride*oW
+                y = stride*oH
+                x = stride*oW
 
                 # build vector of length (C * kernel_h * kernel_w)
                 flattened_slidding_kernel = get_flattened_slidding_kernel(input_data_with_padding, n, C, y, x, kernel_h, kernel_w)
@@ -411,19 +411,23 @@ def get_flattened_slidding_kernel(input_data, n, n_of_channels, y, x, kernel_h, 
     #Get region of interest
 
     # Alt 1. Kernel sliding centered at pixel
-    roi = input_data[n, range(n_of_channels), y-int(kernel_h/2):y+int(np.ceil(kernel_h/2)), x-int(kernel_w/2): x + int(np.ceil(kernel_w/2))]
+    # roi = input_data[n, range(n_of_channels), y-int(kernel_h/2):y+int(np.ceil(kernel_h/2)), x-int(kernel_w/2): x + int(np.ceil(kernel_w/2))]
 
     # Alt 2. Kernel sliding with top left corner at pixel
-    # roi = input_data[n, range(n_of_channels), y:y+kernel_h, x: x + kernel_w]
+    roi = input_data[n, range(n_of_channels), y:y+kernel_h, x: x + kernel_w]
    
-    # print("roi first pic first channel")
-    # print(roi[0,1])
-
     #Flatten it
-    # print("roi_flatten")
     roi_flatten = roi.flatten()
-    # print(roi_flatten)
+
     return roi_flatten
+
+
+
+def trim_border_up_and_left(image, wx = 1, wy = 1):
+   assert image.ndim == 2, 'image should be grayscale'
+   sx, sy = image.shape
+   img = np.copy(image[wx:(sx),wy:(sy)])
+   return img
 
 def trim_border(image, wx = 1, wy = 1):
    assert image.ndim == 2, 'image should be grayscale'
@@ -468,11 +472,48 @@ def pad_border(image, wx = 1, wy = 1):
         output_data -- output_array with shape (N, C, H, W)
 '''
 def col2im(input_data, kernel_h, kernel_w, stride=1, padding=0):
-    ########################
-    # TODO: YOUR CODE HERE #
-    ########################
 
-    return output_data
+    N, c_kh_kw, out_H, out_W = input_data.shape
+
+    # out_shape = (input_shape - kernel_size + 2 * padding) / stride + 1          
+    # input_shape = (out_shape -1)*stride - 2*padding + kernel_size
+    # But, we will first work with an image with paddings, and remove the padding in th end           
+    H = (out_H-1)*stride + kernel_h# - 2*padding 
+    W = (out_W-1)*stride + kernel_w# - 2*padding 
+
+    C = int(c_kh_kw / (kernel_h*kernel_w))
+
+    output_data = np.empty(shape=(N, C, H, W))
+
+    for n in range(N):
+        for oH in range(out_H):
+            for oW in range(out_W):
+
+                #Get position of each kernel in original image
+                y_center_k = stride*oH
+                x_center_k = stride*oW
+
+                flatten_slidding_kernel_vector = input_data[n,range(c_kh_kw),oH, oW]
+
+                slidding_kernel = flatten_slidding_kernel_vector.reshape((C, kernel_h,kernel_w))
+
+                #Fill output_data: original image, channel by channel, with info from slidding kernel
+                for c in range(C):
+                    for y_index, y in enumerate(range(y_center_k, y_center_k+kernel_h)):
+                        for x_index, x in enumerate(range(x_center_k, x_center_k+kernel_w)):
+                            output_data[n,c,y,x] = slidding_kernel[c,y_index, x_index]
+
+    #Now we need to remove the padding on top and lefts borders
+    H_final = (out_H-1)*stride + kernel_h - padding 
+    W_final = (out_W-1)*stride + kernel_w - padding 
+
+    output_data_without_padding = np.empty(shape=(N, C, H_final, W_final))    
+
+    for n in range(N):
+        for c in range(C):
+            output_data_without_padding[n,c] = trim_border_up_and_left(output_data[n,c], wx = padding, wy = padding)
+
+    return output_data_without_padding 
 
 '''
     Conv2d
@@ -538,9 +579,12 @@ class Conv2d(object):
 
         input_im2col = im2col(input, kernel_h=self.kernel_h, kernel_w=self.kernel_w, stride=self.stride, padding=self.padding)
 
+
+        #To test that col2im works
+        # recovered_input = col2im(input_im2col, kernel_h=self.kernel_h, kernel_w=self.kernel_w, stride=self.stride, padding=self.padding)
+        # print((input == recovered_input).all())
+
         N, c_kh_kw, out_H, out_W = input_im2col.shape #(1, 27, 16, 16)
-        
-        #print(self.weight.shape) #(6, 3, 3, 3)
 
         output = np.empty([N, self.output_channel, out_H, out_W])
 
@@ -587,6 +631,9 @@ class Conv2d(object):
         grad_input = np.empty(shape=(N, self.input_channel, self.H, self.W))
         grad_weight = np.empty(shape=(output_channel, self.input_channel, self.kernel_h, self.kernel_w))
         grad_bias = np.empty(shape=(output_channel))
+
+        #INCOMPLETE!
+        # col2im(grad_output, self.kernel_h, self.kernel_w, self.stride, self.padding)
 
         return grad_input, grad_weight, grad_bias
 
@@ -640,14 +687,13 @@ class MaxPool2d(object):
 
         _, self.input_channel, self.H, self.W = input.shape
 
-        # print(input.shape) #(1, 3, 32, 32)
-
         input_im2col = im2col(input, kernel_h=self.kernel_h, kernel_w=self.kernel_w, stride=self.stride, padding=self.padding)
 
-        N, c_kh_kw, out_H, out_W = input_im2col.shape #(1, 12, 16, 16)
-        # print(input_im2col.shape)
+        N, self.c_kh_kw, out_H, out_W = input_im2col.shape
+  
         output = np.empty([N, self.input_channel, out_H, out_W])
-        # print(output.shape) # 1 3 16 16
+
+        self.indices_of_max = np.empty([N, self.input_channel, out_H, out_W])
 
         for n in range(N):
             for channel in range(self.input_channel):
@@ -657,10 +703,12 @@ class MaxPool2d(object):
                         range_where_to_look_in_im2col = \
                             range(channel*self.kernel_h*self.kernel_w, (channel+1)*self.kernel_h*self.kernel_w)                   
 
-
                         output[n,channel,oH, oW] = \
                             max(input_im2col[n, range_where_to_look_in_im2col, oH, oW])
-        
+
+                        self.indices_of_max[n,channel,oH, oW] = \
+                            np.argmax(input_im2col[n, range_where_to_look_in_im2col, oH, oW])
+      
         return output
 
     '''
@@ -675,13 +723,29 @@ class MaxPool2d(object):
             grad_input  -- numpy array of shape(N, input_channel, H, W), gradient w.r.t input
     '''
     def backward(self, grad_output):
-        ########################
-        # TODO: YOUR CODE HERE #
-        ########################
+
+        # We know that the gradient of the maxpool layer w.r.t the input is a matrix full of zeros but with a 1 if the observation is the kernel local max
         N, input_channel, out_H, out_W = grad_output.shape
 
-        grad_input = np.empty(shape=(N, input_channel, self.H, self.W))
+        grad_input = np.zeros(shape=(N, input_channel, self.H, self.W))
 
-        #Incomplete...
+        for n in range(N):
+            for c in range(input_channel):
+                for oH in range(out_H):
+                    for oW in range(out_W):
+
+                        #Get the relative position of the max point for each sliding kernel
+                        index_of_max = self.indices_of_max[n, c, oH, oW]
+
+                        #Transform oH and oW to dimensions in input image, to get center of kernel in original image
+                        y_center_k = self.stride*oH
+                        x_center_k = self.stride*oW
+
+                        #Find position of max point in original image
+                        y = y_center_k + int(index_of_max/self.kernel_w)
+                        x = x_center_k + int(index_of_max % self.kernel_w)
+
+                        #Insert a 1 in the position of the max
+                        grad_input[n, c, y, x] = 1
 
         return grad_input
