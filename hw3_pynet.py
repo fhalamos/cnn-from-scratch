@@ -398,10 +398,11 @@ def im2col(input_data, kernel_h, kernel_w, stride, padding):
 
                 # build vector of length (C * kernel_h * kernel_w)
                 flattened_slidding_kernel = get_flattened_slidding_kernel(input_data_with_padding, n, C, y, x, kernel_h, kernel_w)
-                # print(flattened_slidding_kernel.shape)
-                # print(output_data.shape)
-                for index, c in enumerate(flattened_slidding_kernel):
-                    output_data[n, index, oH, oW] = c
+                
+                output_data[n, range(C*kernel_h*kernel_w), oH, oW] = flattened_slidding_kernel
+                # Previous line is analogouts to:
+                # for index, c in enumerate(flattened_slidding_kernel):
+                #     output_data[n, index, oH, oW] = c
 
     return output_data
 
