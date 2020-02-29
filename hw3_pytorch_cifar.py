@@ -289,7 +289,7 @@ momentum = 0.3
 # dampening = 0.5
 weight_decay = 0.5
 for optimizer_name in ['SGD', 'Adam']:   
-    for optimizer_option in [True]: #False
+    for optimizer_option in [True, False]: #
         for lr in lrs:
             model = myNet()
             if(optimizer_name == 'SGD'):
